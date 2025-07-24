@@ -15,7 +15,7 @@ class SupabaseClient:
         """Create schema for a Zoho app"""
         try:
             # Create schema using raw SQL
-            await self.client.rpc(
+            self.client.rpc(
                 "create_schema_if_not_exists",
                 {"schema_name": schema_name}
             ).execute()
@@ -28,7 +28,7 @@ class SupabaseClient:
         """Upsert record in specified schema.table"""
         try:
             # Use RPC to call a function that handles schema.table operations
-            result = await self.client.rpc(
+            result = self.client.rpc(
                 "upsert_record",
                 {
                     "p_schema": schema,
@@ -48,7 +48,7 @@ class SupabaseClient:
         """Get records from specified schema.table"""
         try:
             # Use RPC to call a function that handles schema.table operations
-            result = await self.client.rpc(
+            result = self.client.rpc(
                 "get_records",
                 {
                     "p_schema": schema,
@@ -65,7 +65,7 @@ class SupabaseClient:
     async def delete_record(self, schema: str, table: str, record_id: str) -> bool:
         """Delete record from specified schema.table"""
         try:
-            result = await self.client.rpc(
+            result = self.client.rpc(
                 "delete_record",
                 {
                     "p_schema": schema,
@@ -82,7 +82,7 @@ class SupabaseClient:
     async def get_sync_status(self, schema: str, table: str) -> Dict:
         """Get sync status for a table"""
         try:
-            result = await self.client.rpc(
+            result = self.client.rpc(
                 "get_sync_status",
                 {
                     "p_schema": schema,
@@ -99,7 +99,7 @@ class SupabaseClient:
                                 last_sync: str, status: str) -> None:
         """Update sync status for a table"""
         try:
-            await self.client.rpc(
+            self.client.rpc(
                 "update_sync_status",
                 {
                     "p_schema": schema,

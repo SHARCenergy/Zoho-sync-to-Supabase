@@ -125,10 +125,10 @@ GRANT ALL ON ALL SEQUENCES IN SCHEMA zoho_fsm TO authenticated;
 
 -- Insert initial sync status records
 INSERT INTO sync_status (table_name, status) VALUES 
-    ('work_orders', 'idle'),
-    ('service_appointments', 'idle'),
-    ('customers', 'idle'),
-    ('technicians', 'idle')
+    ('zoho_fsm.work_orders', 'idle'),
+    ('zoho_fsm.service_appointments', 'idle'),
+    ('zoho_fsm.customers', 'idle'),
+    ('zoho_fsm.technicians', 'idle')
 ON CONFLICT (table_name) DO NOTHING;
 
 -- Create function to update updated_at timestamp

@@ -17,10 +17,17 @@ class SyncManager:
         """Initialize sync manager and create schemas"""
         logger.info("Initializing sync manager...")
         
-        # Create schemas for different Zoho apps
+        # Create schemas for different Zoho apps (skip if they already exist)
         schemas = ["zoho_fsm", "zoho_crm", "zoho_inventory"]
         for schema in schemas:
-            await self.supabase_client.create_schema(schema)
+            try:
+                await self.supabase_client.create_schema(schema)
+            except Exception as e:
+                # If schema already exists, that's fine - just log it
+                if "already exists" in str(e) or "permission denied" in str(e):
+                    logger.info(f"Schema {schema} already exists or permission denied (continuing...)")
+                else:
+                    logger.error(f"Error creating schema {schema}: {e}")
         
         logger.info("Sync manager initialized successfully")
     

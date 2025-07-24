@@ -1,14 +1,75 @@
+-- Check and create missing functions
+-- Run this to ensure all required functions exist
+
+-- Check if functions exist
+SELECT 'EXISTING FUNCTIONS:' as check_type;
+SELECT routine_name FROM information_schema.routines 
+WHERE routine_schema = 'public' 
+AND routine_name IN ('get_sync_status', 'update_sync_status', 'upsert_record', 'get_records', 'delete_record', 'create_schema_if_not_exists');
+
+-- If functions are missing, create them
 -- Function to create schema if not exists
 CREATE OR REPLACE FUNCTION create_schema_if_not_exists(schema_name TEXT)
 RETURNS VOID AS $$
 BEGIN
-    IF NOT EXISTS (SELECT 1 FROM information_schema.schemata WHERE schema_name = $1) THEN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.schemata WHERE information_schema.schemata.schema_name = $1) THEN
         EXECUTE 'CREATE SCHEMA ' || quote_ident($1);
     END IF;
 END;
 $$ LANGUAGE plpgsql;
 
--- Function to upsert record in any schema.table
+-- Function to get sync status
+CREATE OR REPLACE FUNCTION get_sync_status(
+    p_schema TEXT,
+    p_table TEXT
+)
+RETURNS JSONB AS $$
+DECLARE
+    result JSONB;
+    full_table_name TEXT;
+BEGIN
+    -- Create full table name for lookup
+    full_table_name := p_schema || '.' || p_table;
+    
+    SELECT to_jsonb(s.*) INTO result
+    FROM zoho_fsm.sync_status s
+    WHERE s.table_name = full_table_name;
+    
+    RETURN result;
+EXCEPTION
+    WHEN OTHERS THEN
+        RAISE EXCEPTION 'Error in get_sync_status: %', SQLERRM;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Function to update sync status
+CREATE OR REPLACE FUNCTION update_sync_status(
+    p_last_sync TEXT,
+    p_schema TEXT,
+    p_status TEXT,
+    p_table TEXT
+)
+RETURNS VOID AS $$
+DECLARE
+    full_table_name TEXT;
+BEGIN
+    -- Create full table name for storage
+    full_table_name := p_schema || '.' || p_table;
+    
+    INSERT INTO zoho_fsm.sync_status (table_name, last_sync, status, updated_at)
+    VALUES (full_table_name, p_last_sync::timestamp with time zone, p_status, NOW())
+    ON CONFLICT (table_name)
+    DO UPDATE SET 
+        last_sync = EXCLUDED.last_sync,
+        status = EXCLUDED.status,
+        updated_at = NOW();
+EXCEPTION
+    WHEN OTHERS THEN
+        RAISE EXCEPTION 'Error in update_sync_status: %', SQLERRM;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Function to upsert record
 CREATE OR REPLACE FUNCTION upsert_record(
     p_schema TEXT,
     p_table TEXT,
@@ -46,7 +107,7 @@ EXCEPTION
 END;
 $$ LANGUAGE plpgsql;
 
--- Function to get records from any schema.table
+-- Function to get records
 CREATE OR REPLACE FUNCTION get_records(
     p_schema TEXT,
     p_table TEXT,
@@ -81,7 +142,7 @@ EXCEPTION
 END;
 $$ LANGUAGE plpgsql;
 
--- Function to delete record from any schema.table
+-- Function to delete record
 CREATE OR REPLACE FUNCTION delete_record(
     p_schema TEXT,
     p_table TEXT,
@@ -106,53 +167,8 @@ EXCEPTION
 END;
 $$ LANGUAGE plpgsql;
 
--- Function to get sync status (updated to match actual table structure)
-CREATE OR REPLACE FUNCTION get_sync_status(
-    p_schema TEXT,
-    p_table TEXT
-)
-RETURNS JSONB AS $$
-DECLARE
-    result JSONB;
-    full_table_name TEXT;
-BEGIN
-    -- Create full table name for lookup
-    full_table_name := p_schema || '.' || p_table;
-    
-    SELECT to_jsonb(s.*) INTO result
-    FROM sync_status s
-    WHERE s.table_name = full_table_name;
-    
-    RETURN result;
-EXCEPTION
-    WHEN OTHERS THEN
-        RAISE EXCEPTION 'Error in get_sync_status: %', SQLERRM;
-END;
-$$ LANGUAGE plpgsql;
-
--- Function to update sync status (updated to match actual table structure)
-CREATE OR REPLACE FUNCTION update_sync_status(
-    p_last_sync TEXT,
-    p_schema TEXT,
-    p_status TEXT,
-    p_table TEXT
-)
-RETURNS VOID AS $$
-DECLARE
-    full_table_name TEXT;
-BEGIN
-    -- Create full table name for storage
-    full_table_name := p_schema || '.' || p_table;
-    
-    INSERT INTO sync_status (table_name, last_sync, status, updated_at)
-    VALUES (full_table_name, p_last_sync::timestamp with time zone, p_status, NOW())
-    ON CONFLICT (table_name)
-    DO UPDATE SET 
-        last_sync = EXCLUDED.last_sync,
-        status = EXCLUDED.status,
-        updated_at = NOW();
-EXCEPTION
-    WHEN OTHERS THEN
-        RAISE EXCEPTION 'Error in update_sync_status: %', SQLERRM;
-END;
-$$ LANGUAGE plpgsql; 
+-- Verify functions were created
+SELECT 'FUNCTIONS CREATED:' as check_type;
+SELECT routine_name FROM information_schema.routines 
+WHERE routine_schema = 'public' 
+AND routine_name IN ('get_sync_status', 'update_sync_status', 'upsert_record', 'get_records', 'delete_record', 'create_schema_if_not_exists'); 

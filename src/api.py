@@ -101,6 +101,64 @@ async def get_logs(limit: int = 100):
         logger.error(f"Error getting logs: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.get("/data/{schema}/{table}")
+async def get_data(schema: str, table: str, limit: int = 100, offset: int = 0):
+    """Get data from specified schema.table"""
+    try:
+        # Validate schema and table
+        valid_schemas = ["zoho_fsm", "zoho_crm", "zoho_inventory"]
+        if schema not in valid_schemas:
+            raise HTTPException(status_code=400, detail=f"Invalid schema: {schema}")
+        
+        # Get data using sync manager's supabase client
+        data = await sync_manager.supabase_client.get_records(schema, table)
+        
+        # Apply pagination
+        if isinstance(data, list):
+            data = data[offset:offset + limit]
+        
+        return {
+            "schema": schema,
+            "table": table,
+            "count": len(data) if isinstance(data, list) else 0,
+            "data": data
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting data from {schema}.{table}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/data/{schema}/{table}/{record_id}")
+async def get_record(schema: str, table: str, record_id: str):
+    """Get a specific record from schema.table"""
+    try:
+        # Validate schema
+        valid_schemas = ["zoho_fsm", "zoho_crm", "zoho_inventory"]
+        if schema not in valid_schemas:
+            raise HTTPException(status_code=400, detail=f"Invalid schema: {schema}")
+        
+        # Get specific record using filters
+        filters = {"id": record_id}
+        data = await sync_manager.supabase_client.get_records(schema, table, filters)
+        
+        if not data or len(data) == 0:
+            raise HTTPException(status_code=404, detail="Record not found")
+        
+        return {
+            "schema": schema,
+            "table": table,
+            "record_id": record_id,
+            "data": data[0] if isinstance(data, list) else data
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting record {record_id} from {schema}.{table}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Error getting logs: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.post("/sync/start")
 async def start_continuous_sync(background_tasks: BackgroundTasks):
     """Start continuous sync"""
